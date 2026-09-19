@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../controllers/join_room_controller.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ice_link_app_bar.dart';
 
 class JoinRoomPage extends GetView<JoinRoomController> {
   const JoinRoomPage({super.key});
@@ -10,7 +11,7 @@ class JoinRoomPage extends GetView<JoinRoomController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('방 참가하기'), centerTitle: false),
+      appBar: const IceLinkAppBar(title: '방 참가하기'),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -21,8 +22,8 @@ class JoinRoomPage extends GetView<JoinRoomController> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const _PageHeader(
-                    title: '방 핀과 설문을 입력하세요',
-                    subtitle: '성격 질문 6개와 취미 하나를 고르면 팀 번호가 생성됩니다.',
+                    title: '방 핀과 설문을 입력하세요!',
+                    subtitle: '성격 질문에 답하고 취미를 하나 선택해주세요.',
                   ),
                   const SizedBox(height: 20),
                   TextField(
@@ -51,8 +52,9 @@ class JoinRoomPage extends GetView<JoinRoomController> {
                       runSpacing: 10,
                       children: [
                         for (final hobby in controller.hobbies)
-                          _SelectableChip(
+                          _HobbyChip(
                             label: hobby,
+                            icon: _hobbyIcon(hobby),
                             selected: controller.selectedHobby.value == hobby,
                             onTap: () => controller.selectHobby(hobby),
                           ),
@@ -60,23 +62,17 @@ class JoinRoomPage extends GetView<JoinRoomController> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: controller.generateTeamNumber,
-                    icon: const Icon(Icons.groups_rounded),
-                    label: const Text('팀 번호 생성하기'),
+                  Obx(
+                    () => FilledButton.icon(
+                      onPressed: controller.isSubmitting.value
+                          ? null
+                          : controller.generateTeamNumber,
+                      icon: const Icon(Icons.groups_rounded),
+                      label: Text(
+                        controller.isSubmitting.value ? '제출 중...' : '팀 번호 생성하기',
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Obx(() {
-                    final teamNumber = controller.teamNumber.value;
-                    if (teamNumber == null) {
-                      return const SizedBox.shrink();
-                    }
-
-                    return _TeamNumberCard(
-                      teamNumber: teamNumber,
-                      onPressed: controller.goToQuestionPage,
-                    );
-                  }),
                 ],
               ),
             ),
@@ -110,18 +106,11 @@ class _QuestionBlock extends GetView<JoinRoomController> {
           ),
           const SizedBox(height: 12),
           Obx(
-            () => Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final option in controller.answerOptions)
-                  _SelectableChip(
-                    label: option,
-                    selected:
-                        controller.selectedAnswers[questionIndex] == option,
-                    onTap: () => controller.selectAnswer(questionIndex, option),
-                  ),
-              ],
+            () => _AnswerScale(
+              options: controller.answerOptions,
+              selectedAnswer: controller.selectedAnswers[questionIndex],
+              onSelected: (answer) =>
+                  controller.selectAnswer(questionIndex, answer),
             ),
           ),
         ],
@@ -130,69 +119,140 @@ class _QuestionBlock extends GetView<JoinRoomController> {
   }
 }
 
-class _TeamNumberCard extends StatelessWidget {
-  const _TeamNumberCard({required this.teamNumber, required this.onPressed});
+class _AnswerScale extends StatelessWidget {
+  const _AnswerScale({
+    required this.options,
+    required this.selectedAnswer,
+    required this.onSelected,
+  });
 
-  final int teamNumber;
-  final VoidCallback onPressed;
+  final List<String> options;
+  final String? selectedAnswer;
+  final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.ink,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            '당신의 팀 번호',
-            style: TextStyle(
-              color: Colors.white70,
-              fontWeight: FontWeight.w800,
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            for (int i = 0; i < options.length; i += 1)
+              _AnswerCircle(
+                label: options[i],
+                selected: selectedAnswer == options[i],
+                color: _answerColor(i),
+                onTap: () => onSelected(options[i]),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: const [
+            Expanded(
+              child: Text(
+                '매우 맞음',
+                style: TextStyle(
+                  color: Color(0xFF667085),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$teamNumber',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 58,
-              fontWeight: FontWeight.w900,
-              height: 1,
+            Text(
+              '매우 아님',
+              style: TextStyle(
+                color: Color(0xFF667085),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Color _answerColor(int index) {
+    if (index < 2) {
+      return AppTheme.primaryBlue;
+    }
+    if (index == 2) {
+      return const Color(0xFFB8BDC7);
+    }
+    return const Color(0xFF7A4A15);
+  }
+}
+
+class _AnswerCircle extends StatelessWidget {
+  const _AnswerCircle({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.color,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: label,
+      button: true,
+      selected: selected,
+      child: Tooltip(
+        message: label,
+        child: InkResponse(
+          onTap: onTap,
+          radius: 26,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: selected ? color : Colors.white,
+              border: Border.all(color: color, width: selected ? 6 : 2.5),
+            ),
+            child: selected
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                : null,
           ),
-          const SizedBox(height: 18),
-          FilledButton.icon(
-            onPressed: onPressed,
-            icon: const Icon(Icons.arrow_forward_rounded),
-            label: const Text('질문 페이지로 이동'),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _SelectableChip extends StatelessWidget {
-  const _SelectableChip({
+class _HobbyChip extends StatelessWidget {
+  const _HobbyChip({
     required this.label,
+    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
+  final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return ChoiceChip(
+      key: ValueKey('hobby-$label'),
+      avatar: Icon(
+        icon,
+        size: 18,
+        color: selected ? Colors.white : AppTheme.primaryBlue,
+      ),
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: AppTheme.ink,
+      selectedColor: AppTheme.primaryBlue,
       labelStyle: TextStyle(
         color: selected ? Colors.white : AppTheme.ink,
         fontWeight: FontWeight.w800,
@@ -201,6 +261,17 @@ class _SelectableChip extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
   }
+}
+
+IconData _hobbyIcon(String hobby) {
+  return switch (hobby) {
+    '게임' => Icons.sports_esports_rounded,
+    '여행' => Icons.flight_takeoff_rounded,
+    '음식' => Icons.restaurant_rounded,
+    '스포츠' => Icons.sports_soccer_rounded,
+    '영화' => Icons.movie_rounded,
+    _ => Icons.interests_rounded,
+  };
 }
 
 class _PageHeader extends StatelessWidget {

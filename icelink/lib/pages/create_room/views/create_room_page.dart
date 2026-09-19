@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../controllers/create_room_controller.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ice_link_app_bar.dart';
 
 class CreateRoomPage extends GetView<CreateRoomController> {
   const CreateRoomPage({super.key});
@@ -10,7 +12,7 @@ class CreateRoomPage extends GetView<CreateRoomController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('방 생성하기'), centerTitle: false),
+      appBar: const IceLinkAppBar(title: '팀 구성 및 질문 추가'),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -20,39 +22,23 @@ class CreateRoomPage extends GetView<CreateRoomController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const _PageHeader(
-                    title: '팀 구성 방식을 정하세요',
-                    subtitle: '팀별 인원과 주최자 질문을 설정하면 참가용 핀이 생성됩니다.',
-                  ),
-                  const SizedBox(height: 22),
                   const Text(
                     '팀별 인원',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 12),
-                  Obx(
-                    () => Row(
-                      children: [
-                        for (final count in [2, 3, 4, 5, 6])
-                          Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                right: count == 6 ? 0 : 8,
-                              ),
-                              child: _CountButton(
-                                count: count,
-                                selected:
-                                    controller.teamMemberCount.value == count,
-                                onTap: () =>
-                                    controller.setTeamMemberCount(count),
-                              ),
-                            ),
-                          ),
-                      ],
+                  TextField(
+                    controller: controller.teamMemberCountController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: '팀별 인원',
+                      hintText: '예: 6명 (숫자만 작성하세요)',
+                      prefixIcon: Icon(Icons.groups_rounded),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  _AiQuestionCard(question: controller.aiQuestion),
+                  _AiQuestionCard(question: controller.tipBoxText),
                   const SizedBox(height: 22),
                   TextField(
                     controller: controller.customQuestionController,
@@ -64,6 +50,23 @@ class CreateRoomPage extends GetView<CreateRoomController> {
                       prefixIcon: Icon(Icons.question_answer_rounded),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: controller.addCustomQuestion,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('질문 추가하기'),
+                  ),
+                  const SizedBox(height: 18),
+                  Obx(() {
+                    if (controller.customQuestions.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return _CustomQuestionList(
+                      questions: controller.customQuestions,
+                      onRemove: controller.removeCustomQuestion,
+                    );
+                  }),
                   const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: controller.createRoomPin,
@@ -79,7 +82,7 @@ class CreateRoomPage extends GetView<CreateRoomController> {
 
                     return _RoomPinCard(
                       pin: pin,
-                      onPressed: controller.goToQuestionPage,
+                      onPressed: controller.goToPeopleChecklist,
                     );
                   }),
                 ],
@@ -92,43 +95,103 @@ class CreateRoomPage extends GetView<CreateRoomController> {
   }
 }
 
-class _CountButton extends StatelessWidget {
-  const _CountButton({
-    required this.count,
-    required this.selected,
-    required this.onTap,
-  });
+class _CustomQuestionList extends StatelessWidget {
+  const _CustomQuestionList({required this.questions, required this.onRemove});
 
-  final int count;
-  final bool selected;
-  final VoidCallback onTap;
+  final List<String> questions;
+  final ValueChanged<int> onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppTheme.primaryBlue : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFD0D5DD)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '추가된 질문',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 12),
+          for (int i = 0; i < questions.length; i += 1) ...[
+            _CustomQuestionTile(
+              index: i,
+              question: questions[i],
+              onRemove: () => onRemove(i),
+            ),
+            if (i != questions.length - 1) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomQuestionTile extends StatelessWidget {
+  const _CustomQuestionTile({
+    required this.index,
+    required this.question,
+    required this.onRemove,
+  });
+
+  final int index;
+  final String question;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F8FB),
         borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 54,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? AppTheme.primaryBlue : const Color(0xFFD0D5DD),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 7.0),
+            child: Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${index + 1}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ),
-          child: Text(
-            '$count',
-            style: TextStyle(
-              color: selected ? Colors.white : AppTheme.ink,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              question,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
             ),
           ),
-        ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: onRemove,
+            tooltip: '질문 삭제',
+            icon: const Icon(Icons.close_rounded),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
       ),
     );
   }
@@ -151,7 +214,7 @@ class _AiQuestionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'AI 기본 질문',
+            'Tip!',
             style: TextStyle(
               color: AppTheme.iceAccent,
               fontWeight: FontWeight.w900,
@@ -210,44 +273,10 @@ class _RoomPinCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: onPressed,
             icon: const Icon(Icons.arrow_forward_rounded),
-            label: const Text('질문 페이지로 이동'),
+            label: const Text('참가자 명단 확인하기'),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _PageHeader extends StatelessWidget {
-  const _PageHeader({required this.title, required this.subtitle});
-
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w900,
-            height: 1.08,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: Color(0xFF667085),
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            height: 1.35,
-          ),
-        ),
-      ],
     );
   }
 }

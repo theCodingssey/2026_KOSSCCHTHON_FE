@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../controllers/login_controller.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/theme/app_theme.dart';
 
 class LoginPage extends GetView<LoginController> {
   const LoginPage({super.key});
@@ -20,10 +18,9 @@ class LoginPage extends GetView<LoginController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const _BrandMark(),
                   const SizedBox(height: 28),
                   const Text(
-                    '이름을 입력하고 시작하세요!',
+                    '이름을 입력하고\n시작하세요!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 30,
@@ -69,48 +66,6 @@ class LoginPage extends GetView<LoginController> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _BrandMark extends StatelessWidget {
-  const _BrandMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 92,
-          height: 92,
-          decoration: BoxDecoration(
-            color: AppTheme.ink,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.ink.withValues(alpha: 0.16),
-                blurRadius: 28,
-                offset: const Offset(0, 18),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.link_rounded,
-            color: AppTheme.iceAccent,
-            size: 52,
-          ),
-        ),
-        const SizedBox(height: 18),
-        const Text(
-          AppConstants.appName,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 42,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0,
-          ),
-        ),
-      ],
     );
   }
 }
